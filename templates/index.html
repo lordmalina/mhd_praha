@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>MHD Panel</title>
+    <style>
+        body { background: #000; color: #ffffff; font-family: 'Arial', sans-serif; margin: 0; padding: 15px; }
+        .stop-section { margin-bottom: 25px; }
+        .stop-title { font-size: 1.5rem; color: #fff; background: #222; padding: 5px 10px; border-radius: 4px; margin-bottom: 8px; text-transform: uppercase; }
+        .board { width: 100%; border-collapse: collapse; }
+        .row { border-bottom: 1px solid #1a1a1a; height: 65px; }
+        .line { font-size: 2.2rem; font-weight: bold; width: 65px; color: #fff; }
+        .target { font-size: 1.8rem; white-space: nowrap; overflow: hidden; }
+        .time-box { text-align: right; width: 140px; }
+        .time { font-size: 2.2rem; font-weight: bold; font-family: monospace; }
+        .delay { color: #ff3c00; font-size: 1rem; display: block; font-family: monospace; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <div id="content">Načítám data z Golemia...</div>
+
+    <script>
+        let departureData = [];
+        let isFetching = false;
+
+        function formatTime(totalSeconds) {
+            if (isNaN(totalSeconds) || totalSeconds < 0) return "0:00";
+            const m = Math.floor(totalSeconds / 60);
+            const s = totalSeconds % 60;
+            return `${m}:${s.toString().padStart(2, '0')}`;
+        }
+
+        function formatDelay(totalSeconds) {
+            if (totalSeconds <= 10) return "";
+            const m = Math.floor(totalSeconds / 60);
+            const s = totalSeconds % 60;
+            return `+${m}m ${s}s`;
+        }
+
+        async function fetchData() {
+            if (isFetching) return;
+            isFetching = true;
+            try {
+                const response = await fetch('/api/data');
+                const data = await response.json();
+                if (!data.error) {
+                    departureData = data;
+                    renderStaticStructure();
+                }
+            } catch (e) {
+                console.error("Chyba API:", e);
+            } finally {
+                isFetching = false;
+            }
+        }
+
+        function renderStaticStructure() {
+            let html = '';
+            const now = new Date();
+
+            departureData.forEach((stop, stopIdx) => {
+                html += `<div class="stop-section">
+                    <div class="stop-title">${stop.stop_name}</div>
+                    <table class="board">`;
+                
+                let displayedCount = 0;
+
+                stop.departures.forEach((tram, tramIdx) => {
+                    const depTime = new Date(tram.timestamp);
+                    const diffSecs = Math.floor((depTime - now) / 1000);
+
+                    if (diffSecs >= 0 && displayedCount < 5) {
+                        const uniqueId = `time-${stopIdx}-${tramIdx}`;
+                        html += `<tr class="row">
+                            <td class="line">${tram.line}</td>
+                            <td class="target">${tram.target}</td>
+                            <td class="time-box">
+                                <span class="time" id="${uniqueId}">${formatTime(diffSecs)}</span>
+                                <span class="delay">${formatDelay(tram.delay_secs)}</span>
+                            </td>
+                        </tr>`;
+                        displayedCount++;
+                    }
+                });
+
+                if (displayedCount === 0) {
+                    html += `<tr><td colspan="3" style="color:#666;padding:10px;">Žádné další spoje</td></tr>`;
+                }
+
+                html += `</table></div>`;
+            });
+            document.getElementById('content').innerHTML = html;
+        }
+
+        function updateCounters() {
+            const now = new Date();
+            let triggerRefresh = false;
+            let needsFullRender = false;
+
+            departureData.forEach((stop, stopIdx) => {
+                let visibleInThisStop = 0;
+                
+                stop.departures.forEach((tram, tramIdx) => {
+                    const depTime = new Date(tram.timestamp);
+                    const diffSecs = Math.floor((depTime - now) / 1000);
+                    const element = document.getElementById(`time-${stopIdx}-${tramIdx}`);
+
+                    if (diffSecs < 0 && element) {
+                        needsFullRender = true;
+                        triggerRefresh = true;
+                    } else if (element) {
+                        element.innerText = formatTime(diffSecs);
+                        element.style.color = diffSecs < 60 ? "#ff7300" : "#ffffff";
+                    }
+                });
+            });
+
+            if (needsFullRender) {
+                renderStaticStructure();
+            }
+            
+            if (triggerRefresh) {
+                fetchData();
+            }
+        }
+
+        setInterval(fetchData, 20000); 
+        setInterval(updateCounters, 1000); 
+        
+        fetchData(); 
+    </script>
+</body>
+</html>
