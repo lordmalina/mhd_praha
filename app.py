@@ -1,6 +1,8 @@
+from multiprocessing.resource_sharer import stop
 from flask import Flask, render_template, jsonify
 from dotenv import load_dotenv
 from goc_api import GolemioClient
+from datetime import datetime
 
 load_dotenv()
 app = Flask(__name__)
@@ -20,7 +22,8 @@ def get_data():
         
         all_stops_data = []
         for stop in stops_to_track:
-            raw_data = client.get_departure_boards(stop["id"], limit=8)
+            current_time = datetime.now().astimezone()
+            raw_data = client.get_departure_boards(stop["id"], time_from=current_time, limit=8)
             processed_departures = []
 
             for dep in raw_data.get("departures", []):

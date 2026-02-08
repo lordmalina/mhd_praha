@@ -26,14 +26,19 @@ class GolemioClient:
         response = requests.get(url, headers=self.headers, params=params)
         response.raise_for_status()
         return response.json()
-    
-    def get_departure_boards(self, stop_id: str, mins_before: int = 0, mins_after: int = 60, time_from: datetime = datetime.now(), limit: int = 10) -> str:
+
+    def get_departure_boards(self, stop_id: str, mins_before: int = 0, mins_after: int = 60, time_from: datetime = None, limit: int = 10) -> str:
+        if time_from is None:
+            time_from = datetime.now()
+            
         url = f"{self.base_url}/pid/departureboards"
-        params = {"ids": stop_id,
-                  "minutesBefore": mins_before,
-                  "minutesAfter": mins_after,
-                  "timeFrom": time_from,
-                  "limit": limit}
+        params = {
+            "ids": stop_id,
+            "minutesBefore": mins_before,
+            "minutesAfter": mins_after,
+            "timeFrom": time_from.isoformat(),
+            "limit": limit
+        }
         response = requests.get(url, headers=self.headers, params=params)
         response.raise_for_status()
         return response.json()
