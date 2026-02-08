@@ -1,23 +1,88 @@
 <!DOCTYPE html>
-<html>
+<html lang="cs">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>MHD Panel</title>
     <style>
-        body { background: #000; color: #ffffff; font-family: 'Arial', sans-serif; margin: 0; padding: 15px; }
-        .stop-section { margin-bottom: 25px; }
-        .stop-title { font-size: 1.5rem; color: #fff; background: #222; padding: 5px 10px; border-radius: 4px; margin-bottom: 8px; text-transform: uppercase; }
-        .board { width: 100%; border-collapse: collapse; }
-        .row { border-bottom: 1px solid #1a1a1a; height: 65px; }
-        .line { font-size: 2.2rem; font-weight: bold; width: 65px; color: #fff; }
-        .target { font-size: 1.8rem; white-space: nowrap; overflow: hidden; }
-        .time-box { text-align: right; width: 140px; }
-        .time { font-size: 2.2rem; font-weight: bold; font-family: monospace; }
-        .delay { color: #ff3c00; font-size: 1rem; display: block; font-family: monospace; font-weight: bold; }
+        :root {
+            --orange: #ff9d00;
+            --white: #ffffff;
+            --red: #ff3c00;
+            --bg: #000;
+            --row-height: 52px;
+        }
+
+        body { 
+            background: var(--bg); 
+            color: var(--orange); 
+            font-family: 'Arial', sans-serif; 
+            margin: 0; 
+            padding: 10px 20px;
+            padding-left: calc(20px + env(safe-area-inset-left));
+            padding-right: calc(20px + env(safe-area-inset-right));
+        }
+
+        .stop-section { margin-bottom: 15px; }
+
+        .stop-title { 
+            font-size: 1.2rem; 
+            color: #fff; 
+            background: #1a1a1a; 
+            padding: 4px 12px; 
+            border-radius: 4px; 
+            margin-bottom: 5px; 
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .board { width: 100%; border-collapse: collapse; table-layout: fixed; }
+
+        .row { 
+            border-bottom: 1px solid #111; 
+            height: var(--row-height); 
+        }
+
+        .line { 
+            font-size: 2rem; 
+            font-weight: bold; 
+            width: 70px; 
+            color: #fff; 
+            text-align: left;
+        }
+
+        .target { 
+            font-size: 1.6rem; 
+            white-space: nowrap; 
+            overflow: hidden; 
+            text-overflow: ellipsis;
+            padding-right: 10px;
+        }
+
+        .time-box { 
+            text-align: right; 
+            width: 150px; 
+        }
+
+        .time { 
+            font-size: 2rem; 
+            font-weight: bold; 
+            font-family: 'Courier New', monospace; 
+            color: var(--white);
+        }
+
+        .delay { 
+            color: var(--red); 
+            font-size: 0.9rem; 
+            display: block; 
+            font-family: monospace; 
+            font-weight: bold;
+            margin-top: -4px;
+        }
     </style>
 </head>
 <body>
-    <div id="content">Načítám data z Golemia...</div>
+    <div id="content">Načítám...</div>
 
     <script>
         let departureData = [];
@@ -31,7 +96,7 @@
         }
 
         function formatDelay(totalSeconds) {
-            if (totalSeconds <= 10) return "";
+            if (totalSeconds <= 15) return ""; 
             const m = Math.floor(totalSeconds / 60);
             const s = totalSeconds % 60;
             return `+${m}m ${s}s`;
@@ -47,11 +112,8 @@
                     departureData = data;
                     renderStaticStructure();
                 }
-            } catch (e) {
-                console.error("Chyba API:", e);
-            } finally {
-                isFetching = false;
-            }
+            } catch (e) { console.error(e); }
+            finally { isFetching = false; }
         }
 
         function renderStaticStructure() {
@@ -64,12 +126,11 @@
                     <table class="board">`;
                 
                 let displayedCount = 0;
-
                 stop.departures.forEach((tram, tramIdx) => {
                     const depTime = new Date(tram.timestamp);
                     const diffSecs = Math.floor((depTime - now) / 1000);
 
-                    if (diffSecs >= 0 && displayedCount < 5) {
+                    if (diffSecs >= 0 && displayedCount < 3) {
                         const uniqueId = `time-${stopIdx}-${tramIdx}`;
                         html += `<tr class="row">
                             <td class="line">${tram.line}</td>
@@ -82,11 +143,6 @@
                         displayedCount++;
                     }
                 });
-
-                if (displayedCount === 0) {
-                    html += `<tr><td colspan="3" style="color:#666;padding:10px;">Žádné další spoje</td></tr>`;
-                }
-
                 html += `</table></div>`;
             });
             document.getElementById('content').innerHTML = html;
@@ -94,39 +150,33 @@
 
         function updateCounters() {
             const now = new Date();
-            let triggerRefresh = false;
             let needsFullRender = false;
 
             departureData.forEach((stop, stopIdx) => {
-                let visibleInThisStop = 0;
-                
                 stop.departures.forEach((tram, tramIdx) => {
-                    const depTime = new Date(tram.timestamp);
-                    const diffSecs = Math.floor((depTime - now) / 1000);
                     const element = document.getElementById(`time-${stopIdx}-${tramIdx}`);
-
-                    if (diffSecs < 0 && element) {
-                        needsFullRender = true;
-                        triggerRefresh = true;
-                    } else if (element) {
-                        element.innerText = formatTime(diffSecs);
-                        element.style.color = diffSecs < 60 ? "#ff7300" : "#ffffff";
+                    if (element) {
+                        const depTime = new Date(tram.timestamp);
+                        const diffSecs = Math.floor((depTime - now) / 1000);
+                        
+                        if (diffSecs < 0) {
+                            needsFullRender = true;
+                        } else {
+                            element.innerText = formatTime(diffSecs);
+                            element.style.color = diffSecs < 45 ? "var(--orange)" : "var(--white)";
+                        }
                     }
                 });
             });
 
             if (needsFullRender) {
                 renderStaticStructure();
-            }
-            
-            if (triggerRefresh) {
                 fetchData();
             }
         }
 
-        setInterval(fetchData, 20000); 
-        setInterval(updateCounters, 1000); 
-        
+        setInterval(fetchData, 20000);
+        setInterval(updateCounters, 1000);
         fetchData(); 
     </script>
 </body>

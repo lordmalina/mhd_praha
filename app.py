@@ -23,7 +23,7 @@ def get_data():
         all_stops_data = []
         for stop in stops_to_track:
             current_time = datetime.now().astimezone()
-            raw_data = client.get_departure_boards(stop["id"], time_from=current_time, limit=8)
+            raw_data = client.get_departure_boards(stop["id"], time_from=current_time, limit=5)
             processed_departures = []
 
             for dep in raw_data.get("departures", []):
